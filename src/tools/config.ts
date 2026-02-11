@@ -3,6 +3,24 @@ import { SetConfigValueArgsSchema } from './schemas.js';
 import { getSystemInfo } from '../utils/system-info.js';
 import { currentClient } from '../server.js';
 import { featureFlagManager } from '../utils/feature-flags.js';
+import { buildUiToolMeta, CONFIG_EDITOR_RESOURCE_URI } from '../ui/contracts.js';
+
+const EDITABLE_CONFIG_KEYS = [
+  'blockedCommands',
+  'defaultShell',
+  'allowedDirectories',
+  'fileReadLineLimit',
+  'fileWriteLineLimit',
+  'telemetryEnabled'
+] as const;
+
+function getConfigWarnings(config: ServerConfig): string[] {
+  const warnings: string[] = [];
+  if (Array.isArray(config.allowedDirectories) && config.allowedDirectories.length === 0) {
+    warnings.push('allowedDirectories is set to [], which allows full filesystem access.');
+  }
+  return warnings;
+}
 
 /**
  * Get the entire config including system information
@@ -41,6 +59,12 @@ export async function getConfig() {
         type: "text",
         text: `Current configuration:\n${JSON.stringify(configWithSystemInfo, null, 2)}`
       }],
+      structuredContent: {
+        config: configWithSystemInfo,
+        editableKeys: [...EDITABLE_CONFIG_KEYS],
+        warnings: getConfigWarnings(config)
+      },
+      _meta: buildUiToolMeta(CONFIG_EDITOR_RESOURCE_URI)
     };
   } catch (error) {
     console.error(`Error in getConfig: ${error instanceof Error ? error.message : String(error)}`);
